@@ -7,12 +7,14 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
-dependencies = []
+dependencies = ["mcp (>=1.26.0,<2.0.0)", "injector (>=0.24.0,<0.25.0)"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.0"
 pytest = "^8.0"
 ruff = "^0.8"
+anyio = "^4.12.1"
+pytest-anyio = "^0.0.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -31,6 +33,9 @@ select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[project.scripts]
+ableton-mcp = "ableton_mcp.__main__:main"
 
 [[tool.poetry.packages]]
 include = "ableton_mcp"
