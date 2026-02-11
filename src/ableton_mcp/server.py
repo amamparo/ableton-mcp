@@ -198,6 +198,124 @@ def create_server(injector: Injector | None = None) -> FastMCP:
             {"track_index": track_index, "uri": kit_path},
         )
 
+    # ── Arrangement View ─────────────────────────────────────────────
+
+    @mcp.tool()
+    def get_arrangement_clips(track_index: int) -> str:
+        """Get all clips on the arrangement timeline for a track.
+        Returns each clip's index, name, start_time, end_time, and length
+        in beats. Requires Ableton Live 11+."""
+        return _call("get_arrangement_clips", {"track_index": track_index})
+
+    @mcp.tool()
+    def create_arrangement_clip(
+        track_index: int, start_time: float, length: float
+    ) -> str:
+        """Create an empty MIDI clip on the arrangement timeline.
+        start_time and length are in beats."""
+        return _call(
+            "create_arrangement_clip",
+            {
+                "track_index": track_index,
+                "start_time": start_time,
+                "length": length,
+            },
+        )
+
+    @mcp.tool()
+    def delete_arrangement_clip(track_index: int, clip_index: int) -> str:
+        """Delete a clip from the arrangement timeline.
+        Use get_arrangement_clips to find the clip_index."""
+        return _call(
+            "delete_arrangement_clip",
+            {"track_index": track_index, "clip_index": clip_index},
+        )
+
+    @mcp.tool()
+    def duplicate_arrangement_clip(
+        track_index: int, clip_index: int, destination_time: float
+    ) -> str:
+        """Duplicate an arrangement clip to a new position on the timeline.
+        destination_time is in beats."""
+        return _call(
+            "duplicate_arrangement_clip",
+            {
+                "track_index": track_index,
+                "clip_index": clip_index,
+                "destination_time": destination_time,
+            },
+        )
+
+    @mcp.tool()
+    def get_arrangement_clip_notes(track_index: int, clip_index: int) -> str:
+        """Read all MIDI notes from an arrangement clip.
+        Returns a list of notes with pitch, start_time, duration, velocity,
+        and mute."""
+        return _call(
+            "get_arrangement_clip_notes",
+            {"track_index": track_index, "clip_index": clip_index},
+        )
+
+    @mcp.tool()
+    def set_arrangement_clip_notes(
+        track_index: int, clip_index: int, notes: list[dict]
+    ) -> str:
+        """Set MIDI notes on an arrangement clip. Replaces all existing notes.
+        Each note is a dict with keys: pitch (0-127), start_time (beats),
+        duration (beats), velocity (0-127, default 100), mute (bool, default false)."""
+        return _call(
+            "set_arrangement_clip_notes",
+            {
+                "track_index": track_index,
+                "clip_index": clip_index,
+                "notes": notes,
+            },
+        )
+
+    @mcp.tool()
+    def set_song_time(time: float) -> str:
+        """Set the playback cursor position in beats."""
+        return _call("set_song_time", {"time": time})
+
+    @mcp.tool()
+    def get_arrangement_loop() -> str:
+        """Get the arrangement loop brace position and length in beats."""
+        return _call("get_arrangement_loop")
+
+    @mcp.tool()
+    def set_arrangement_loop(start: float, length: float) -> str:
+        """Set the arrangement loop brace. start and length are in beats."""
+        return _call("set_arrangement_loop", {"start": start, "length": length})
+
+    @mcp.tool()
+    def back_to_arranger() -> str:
+        """Switch playback from session view back to the arrangement.
+        Stops all session clips and resumes arrangement playback."""
+        return _call("back_to_arranger")
+
+    @mcp.tool()
+    def duplicate_session_to_arrangement(
+        track_index: int, clip_index: int, destination_time: float
+    ) -> str:
+        """Copy a session view clip to the arrangement timeline.
+        destination_time is the position in beats where the clip will be placed."""
+        return _call(
+            "duplicate_session_to_arrangement",
+            {
+                "track_index": track_index,
+                "clip_index": clip_index,
+                "destination_time": destination_time,
+            },
+        )
+
+    @mcp.tool()
+    def session_to_arrangement(scene_indices: list[int]) -> str:
+        """Lay out session view scenes sequentially on the arrangement timeline.
+        Takes a list of scene indices and places each scene's clips end-to-end
+        starting from beat 0. Use this to build a full song structure from
+        session view clips."""
+        return _call("session_to_arrangement", {"scene_indices": scene_indices})
+
     return mcp
 
 

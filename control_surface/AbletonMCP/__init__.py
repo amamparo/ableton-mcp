@@ -47,6 +47,22 @@ class AbletonMCP(ControlSurface):
         "stop_playback": ("_stop_playback", True),
         "set_tempo": ("_set_tempo", True),
         "load_browser_item": ("_load_browser_item", True),
+        # Arrangement view
+        "get_arrangement_clips": ("_get_arrangement_clips", False),
+        "create_arrangement_clip": ("_create_arrangement_clip", True),
+        "delete_arrangement_clip": ("_delete_arrangement_clip", True),
+        "duplicate_arrangement_clip": ("_duplicate_arrangement_clip", True),
+        "get_arrangement_clip_notes": ("_get_arrangement_clip_notes", False),
+        "set_arrangement_clip_notes": ("_set_arrangement_clip_notes", True),
+        "set_song_time": ("_set_song_time", True),
+        "get_arrangement_loop": ("_get_arrangement_loop", False),
+        "set_arrangement_loop": ("_set_arrangement_loop", True),
+        "back_to_arranger": ("_back_to_arranger", True),
+        "duplicate_session_to_arrangement": (
+            "_duplicate_session_to_arrangement",
+            True,
+        ),
+        "session_to_arrangement": ("_session_to_arrangement", True),
     }
 
     def __init__(self, c_instance):
@@ -203,6 +219,16 @@ class AbletonMCP(ControlSurface):
                 "No clip at track %d, slot %d" % (track_index, clip_index)
             )
         return slot.clip
+
+    def _get_arrangement_clip(self, track_index, clip_index):
+        track = self._get_track(track_index)
+        clips = track.arrangement_clips
+        if clip_index < 0 or clip_index >= len(clips):
+            raise ValueError(
+                "Arrangement clip index %d out of range (0-%d)"
+                % (clip_index, len(clips) - 1)
+            )
+        return clips[clip_index]
 
     # ── Session / Info Handlers ─────────────────────────────────────
 
@@ -480,3 +506,164 @@ class AbletonMCP(ControlSurface):
                 if result is not None:
                     return result
         return None
+
+    # ── Arrangement View Handlers ───────────────────────────────────
+
+    def _get_arrangement_clips(self, track_index):
+        track = self._get_track(track_index)
+        clips = []
+        for i, clip in enumerate(track.arrangement_clips):
+            clips.append({
+                "index": i,
+                "name": clip.name,
+                "start_time": clip.start_time,
+                "end_time": clip.end_time,
+                "length": clip.length,
+                "is_playing": clip.is_playing,
+            })
+        return {"clips": clips}
+
+    def _create_arrangement_clip(self, track_index, start_time, length):
+        track = self._get_track(track_index)
+        track.create_midi_clip(float(start_time), float(length))
+        return {
+            "track_index": track_index,
+            "start_time": float(start_time),
+            "length": float(length),
+        }
+
+    def _delete_arrangement_clip(self, track_index, clip_index):
+        clip = self._get_arrangement_clip(track_index, clip_index)
+        track = self._get_track(track_index)
+        track.delete_clip(clip)
+        return {"deleted": True}
+
+    def _duplicate_arrangement_clip(
+        self, track_index, clip_index, destination_time
+    ):
+        clip = self._get_arrangement_clip(track_index, clip_index)
+        track = self._get_track(track_index)
+        track.duplicate_clip_to_arrangement(clip, float(destination_time))
+        return {
+            "duplicated": True,
+            "destination_time": float(destination_time),
+        }
+
+    def _get_arrangement_clip_notes(self, track_index, clip_index):
+        clip = self._get_arrangement_clip(track_index, clip_index)
+        notes = []
+        if hasattr(clip, "get_notes_extended"):
+            raw = clip.get_notes_extended(0, 128, 0.0, clip.length)
+            for note in raw:
+                notes.append({
+                    "pitch": note.pitch,
+                    "start_time": note.start_time,
+                    "duration": note.duration,
+                    "velocity": note.velocity,
+                    "mute": note.mute,
+                })
+        else:
+            raw = clip.get_notes(0.0, 0, clip.length, 128)
+            for note in raw:
+                notes.append({
+                    "pitch": note[0],
+                    "start_time": note[1],
+                    "duration": note[2],
+                    "velocity": note[3],
+                    "mute": note[4],
+                })
+        return {"notes": notes}
+
+    def _set_arrangement_clip_notes(self, track_index, clip_index, notes):
+        clip = self._get_arrangement_clip(track_index, clip_index)
+        note_tuples = []
+        for n in notes:
+            note_tuples.append((
+                int(n.get("pitch", 60)),
+                float(n.get("start_time", 0.0)),
+                float(n.get("duration", 0.5)),
+                int(n.get("velocity", 100)),
+                bool(n.get("mute", False)),
+            ))
+        clip.select_all_notes()
+        clip.replace_selected_notes(tuple(note_tuples))
+        return {"notes_set": len(note_tuples)}
+
+    def _set_song_time(self, time):
+        self.song().current_song_time = max(0.0, float(time))
+        return {"current_song_time": self.song().current_song_time}
+
+    def _get_arrangement_loop(self):
+        song = self.song()
+        return {
+            "loop_start": song.loop_start,
+            "loop_length": song.loop_length,
+        }
+
+    def _set_arrangement_loop(self, start, length):
+        song = self.song()
+        song.loop_start = max(0.0, float(start))
+        song.loop_length = max(0.0, float(length))
+        return {
+            "loop_start": song.loop_start,
+            "loop_length": song.loop_length,
+        }
+
+    def _back_to_arranger(self):
+        self.song().back_to_arranger = True
+        return {"back_to_arranger": True}
+
+    def _duplicate_session_to_arrangement(
+        self, track_index, clip_index, destination_time
+    ):
+        clip = self._get_clip(track_index, clip_index)
+        track = self._get_track(track_index)
+        track.duplicate_clip_to_arrangement(clip, float(destination_time))
+        return {
+            "duplicated": True,
+            "track_index": track_index,
+            "clip_index": clip_index,
+            "destination_time": float(destination_time),
+        }
+
+    def _session_to_arrangement(self, scene_indices):
+        song = self.song()
+        current_time = 0.0
+        clips_placed = 0
+
+        for scene_idx in scene_indices:
+            if scene_idx < 0 or scene_idx >= len(song.scenes):
+                raise ValueError(
+                    "Scene index %d out of range (0-%d)"
+                    % (scene_idx, len(song.scenes) - 1)
+                )
+
+            # Find the longest clip in this scene to determine scene length
+            scene_length = 0.0
+            scene_clips = []
+            for track_idx, track in enumerate(song.tracks):
+                slots = track.clip_slots
+                if scene_idx < len(slots) and slots[scene_idx].has_clip:
+                    clip = slots[scene_idx].clip
+                    scene_clips.append((track, clip))
+                    if clip.length > scene_length:
+                        scene_length = clip.length
+
+            if scene_length == 0.0:
+                continue
+
+            # Duplicate each clip in the scene to the arrangement
+            for track, clip in scene_clips:
+                track.duplicate_clip_to_arrangement(clip, current_time)
+                clips_placed += 1
+
+            current_time += scene_length
+
+        # Switch to arrangement playback
+        song.back_to_arranger = True
+
+        return {
+            "clips_placed": clips_placed,
+            "total_length": current_time,
+            "scenes_processed": len(scene_indices),
+        }

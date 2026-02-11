@@ -91,6 +91,20 @@ claude mcp add ableton-mcp -- uvx --from "git+https://github.com/amamparo/ableto
 | `get_browser_items_at_path` | List items at a browser path |
 | `load_instrument_or_effect` | Load a device onto a track |
 | `load_drum_kit` | Load a drum rack and kit |
+| `get_arrangement_clips` | List clips on the arrangement timeline |
+| `create_arrangement_clip` | Create a MIDI clip on the arrangement timeline |
+| `delete_arrangement_clip` | Delete an arrangement clip |
+| `duplicate_arrangement_clip` | Duplicate an arrangement clip to a new position |
+| `get_arrangement_clip_notes` | Read MIDI notes from an arrangement clip |
+| `set_arrangement_clip_notes` | Set MIDI notes on an arrangement clip |
+| `set_song_time` | Set the playback cursor position |
+| `get_arrangement_loop` | Get the arrangement loop brace |
+| `set_arrangement_loop` | Set the arrangement loop brace |
+| `back_to_arranger` | Switch from session to arrangement playback |
+| `duplicate_session_to_arrangement` | Copy a session clip to the arrangement |
+| `session_to_arrangement` | Lay out scenes sequentially on the arrangement |
+
+> **Note:** Automation breakpoints are not available via the control surface API. Arrangement view features require Ableton Live 11+.
 
 ## Development
 
