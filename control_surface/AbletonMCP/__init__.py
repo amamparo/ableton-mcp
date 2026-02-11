@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import json
 import socket
 import threading
+import time
 import traceback
 
 try:
@@ -515,6 +516,15 @@ class AbletonMCP(ControlSurface):
             })
         return {"items": items}
 
+    def _wait_for_device(self, track, device_count_before, timeout=3.0):
+        """Poll until a new device appears on the track or timeout."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if len(track.devices) > device_count_before:
+                return track.devices[-1].name
+            time.sleep(0.1)
+        return None
+
     def _load_browser_item(self, track_index, uri):
         app = self.application()
         browser = app.browser
@@ -524,18 +534,17 @@ class AbletonMCP(ControlSurface):
             raise ValueError("Browser item not found for URI: %s" % uri)
 
         track = self._get_track(track_index)
+        device_count_before = len(track.devices)
         self.song().view.selected_track = track
         browser.load_item(item)
 
-        device_name = ""
-        if len(track.devices) > 0:
-            device_name = track.devices[-1].name
+        device_name = self._wait_for_device(track, device_count_before)
 
         return {
-            "loaded": True,
+            "loaded": device_name is not None,
             "track_index": track_index,
             "uri": uri,
-            "device_name": device_name,
+            "device_name": device_name or "",
         }
 
     def _create_midi_track_with_instrument(self, uri, index=-1, name=None):
@@ -553,18 +562,19 @@ class AbletonMCP(ControlSurface):
         item = self._find_browser_item_by_uri(browser, uri)
         if item is None:
             raise ValueError("Browser item not found for URI: %s" % uri)
+
+        device_count_before = len(track.devices)
         song.view.selected_track = track
         browser.load_item(item)
 
-        device_name = ""
-        if len(track.devices) > 0:
-            device_name = track.devices[-1].name
+        device_name = self._wait_for_device(track, device_count_before)
 
         return {
             "track_index": index,
             "name": track.name,
             "uri": uri,
-            "device_name": device_name,
+            "device_name": device_name or "",
+            "loaded": device_name is not None,
         }
 
     def _find_browser_item_by_uri(self, browser, uri, max_depth=25):
