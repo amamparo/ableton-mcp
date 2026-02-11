@@ -195,6 +195,18 @@ def create_server(injector: Injector | None = None) -> FastMCP:
         )
 
     @mcp.tool()
+    def create_midi_track_with_instrument(
+        uri: str, index: int = -1, name: str = ""
+    ) -> str:
+        """Create a new MIDI track and load an instrument in a single operation.
+        Faster than separate create_midi_track + load_instrument_or_effect calls.
+        Use index=-1 to append at the end. Optionally set the track name."""
+        params: dict = {"uri": uri, "index": index}
+        if name:
+            params["name"] = name
+        return _call("create_midi_track_with_instrument", params)
+
+    @mcp.tool()
     def load_drum_kit(track_index: int, rack_uri: str, kit_path: str) -> str:
         """Load a drum rack and then load a specific kit into it.
         First loads the rack by URI, then navigates to kit_path to load

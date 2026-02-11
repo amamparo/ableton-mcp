@@ -91,6 +91,7 @@ claude mcp add ableton-mcp -- uvx --from "git+https://github.com/amamparo/ableto
 | `get_browser_tree` | Browse instruments/effects categories |
 | `get_browser_items_at_path` | List items at a browser path |
 | `load_instrument_or_effect` | Load a device onto a track |
+| `create_midi_track_with_instrument` | Create a MIDI track and load an instrument in one step |
 | `load_drum_kit` | Load a drum rack and kit |
 | `get_arrangement_clips` | List clips on the arrangement timeline |
 | `create_arrangement_clip` | Create a MIDI clip on the arrangement timeline |

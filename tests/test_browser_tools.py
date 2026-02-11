@@ -56,6 +56,35 @@ async def test_load_instrument_or_effect(fake_client, mcp_server):
 
 
 @pytest.mark.anyio
+async def test_create_midi_track_with_instrument(fake_client, mcp_server):
+    fake_client.set_response(
+        "create_midi_track_with_instrument",
+        {
+            "track_index": 3,
+            "name": "Bass",
+            "uri": "ableton:Analog",
+            "device_name": "Analog",
+        },
+    )
+
+    content, _ = await mcp_server.call_tool(
+        "create_midi_track_with_instrument",
+        {"uri": "ableton:Analog", "index": -1, "name": "Bass"},
+    )
+    result = json.loads(content[0].text)
+
+    assert result["track_index"] == 3
+    assert result["name"] == "Bass"
+    assert result["device_name"] == "Analog"
+    assert fake_client.commands_sent == [
+        (
+            "create_midi_track_with_instrument",
+            {"uri": "ableton:Analog", "index": -1, "name": "Bass"},
+        )
+    ]
+
+
+@pytest.mark.anyio
 async def test_load_drum_kit(fake_client, mcp_server):
     fake_client.set_response("load_browser_item", {"loaded": True})
 

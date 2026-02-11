@@ -67,7 +67,7 @@ class SocketAbletonClient(AbletonClient):
         return response.get("result", {})
 
     def _receive_full_response(
-        self, buffer_size: int = 8192, timeout: float = 15.0
+        self, buffer_size: int = 8192, timeout: float = 60.0
     ) -> bytes:
         assert self._sock is not None
         self._sock.settimeout(timeout)

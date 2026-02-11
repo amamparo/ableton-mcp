@@ -48,6 +48,10 @@ class AbletonMCP(ControlSurface):
         "stop_playback": ("_stop_playback", True),
         "set_tempo": ("_set_tempo", True),
         "load_browser_item": ("_load_browser_item", True),
+        "create_midi_track_with_instrument": (
+            "_create_midi_track_with_instrument",
+            True,
+        ),
         # Arrangement view
         "get_arrangement_clips": ("_get_arrangement_clips", False),
         "create_arrangement_clip": ("_create_arrangement_clip", True),
@@ -72,6 +76,7 @@ class AbletonMCP(ControlSurface):
         self._response_queues = {}
         self._server_socket = None
         self._running = False
+        self._uri_cache = {}  # URI -> browser item, avoids repeated deep tree searches
         self._start_server()
         self.log_message("AbletonMCP: Listening on port %d" % PORT)
 
@@ -186,7 +191,7 @@ class AbletonMCP(ControlSurface):
         self.schedule_message(0, task)
 
         try:
-            return response_q.get(timeout=10.0)
+            return response_q.get(timeout=30.0)
         except queue.Empty:
             self._response_queues.pop(request_id, None)
             return {
@@ -500,9 +505,12 @@ class AbletonMCP(ControlSurface):
 
         items = []
         for item in current_items:
+            uri = item.uri if hasattr(item, "uri") else ""
+            if uri:
+                self._uri_cache[uri] = item
             items.append({
                 "name": item.name,
-                "uri": item.uri if hasattr(item, "uri") else "",
+                "uri": uri,
                 "is_folder": item.is_folder if hasattr(item, "is_folder") else False,
             })
         return {"items": items}
@@ -530,7 +538,40 @@ class AbletonMCP(ControlSurface):
             "device_name": device_name,
         }
 
+    def _create_midi_track_with_instrument(self, uri, index=-1, name=None):
+        song = self.song()
+        if index == -1:
+            index = len(song.tracks)
+        song.create_midi_track(index)
+        track = song.tracks[index]
+
+        if name:
+            track.name = name
+
+        app = self.application()
+        browser = app.browser
+        item = self._find_browser_item_by_uri(browser, uri)
+        if item is None:
+            raise ValueError("Browser item not found for URI: %s" % uri)
+        song.view.selected_track = track
+        browser.load_item(item)
+
+        device_name = ""
+        if len(track.devices) > 0:
+            device_name = track.devices[-1].name
+
+        return {
+            "track_index": index,
+            "name": track.name,
+            "uri": uri,
+            "device_name": device_name,
+        }
+
     def _find_browser_item_by_uri(self, browser, uri, max_depth=25):
+        # Check cache first (populated by get_browser_items_at_path)
+        if uri in self._uri_cache:
+            return self._uri_cache[uri]
+
         sources = [
             browser.instruments,
             browser.audio_effects,
@@ -545,6 +586,7 @@ class AbletonMCP(ControlSurface):
         for source in sources:
             result = self._search_uri(source, uri, max_depth)
             if result is not None:
+                self._uri_cache[uri] = result
                 return result
 
         # Fallback: search by name (handles cases where URI format varies)
@@ -556,6 +598,7 @@ class AbletonMCP(ControlSurface):
             for source in sources:
                 result = self._search_name(source, name, max_depth)
                 if result is not None:
+                    self._uri_cache[uri] = result
                     return result
 
         return None
