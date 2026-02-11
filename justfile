@@ -21,6 +21,16 @@ lint:
 test:
     poetry run pytest
 
+# Install control surface to Ableton's Remote Scripts directory
+install-control-surface:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TARGET_DIR="$HOME/Music/Ableton/User Library/Remote Scripts/AbletonMCP"
+    mkdir -p "$TARGET_DIR"
+    cp -r control_surface/AbletonMCP/* "$TARGET_DIR/"
+    echo "Control surface installed to $TARGET_DIR"
+    echo "Restart Ableton Live and select AbletonMCP in Preferences > Link, Tempo & MIDI"
+
 # Clean build artifacts
 clean:
     rm -rf dist/ build/ *.egg-info .pytest_cache .mypy_cache .ruff_cache
