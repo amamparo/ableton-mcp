@@ -96,3 +96,15 @@ async def test_set_track_solo(fake_client, mcp_server):
     result = json.loads(content[0].text)
 
     assert result["solo"] is True
+
+
+@pytest.mark.anyio
+async def test_delete_all_tracks(fake_client, mcp_server):
+    fake_client.set_response("delete_all_tracks", {"deleted": 5, "remaining_tracks": 1})
+
+    content, _ = await mcp_server.call_tool("delete_all_tracks", {})
+    result = json.loads(content[0].text)
+
+    assert result["deleted"] == 5
+    assert result["remaining_tracks"] == 1
+    assert fake_client.commands_sent == [("delete_all_tracks", {})]

@@ -61,6 +61,12 @@ def create_server(injector: Injector | None = None) -> FastMCP:
         return _call("delete_track", {"track_index": track_index})
 
     @mcp.tool()
+    def delete_all_tracks() -> str:
+        """Delete all tracks except one. Useful for clearing a session before
+        building a fresh arrangement. Returns the count of deleted tracks."""
+        return _call("delete_all_tracks")
+
+    @mcp.tool()
     def set_track_name(track_index: int, name: str) -> str:
         """Rename a track."""
         return _call("set_track_name", {"track_index": track_index, "name": name})
@@ -171,14 +177,18 @@ def create_server(injector: Injector | None = None) -> FastMCP:
 
     @mcp.tool()
     def get_browser_items_at_path(path: str) -> str:
-        """List items at a specific browser path (e.g. 'Instruments/Analog').
+        """List items at a browser path. Paths can start with a top-level category
+        (e.g. 'Sounds/Bass', 'Instruments/Analog', 'Audio Effects/Reverb') or
+        use a bare subcategory name (e.g. 'Bass').
         Use get_browser_tree first to discover available categories."""
         return _call("get_browser_items_at_path", {"path": path})
 
     @mcp.tool()
     def load_instrument_or_effect(track_index: int, uri: str) -> str:
         """Load an instrument or effect onto a track by its browser URI.
-        Use get_browser_tree and get_browser_items_at_path to find URIs."""
+        Use get_browser_tree and get_browser_items_at_path to find URIs.
+        Returns the loaded device_name so you can verify the correct device was loaded.
+        """
         return _call(
             "load_browser_item",
             {"track_index": track_index, "uri": uri},

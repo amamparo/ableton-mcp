@@ -74,6 +74,7 @@ claude mcp add ableton-mcp -- uvx --from "git+https://github.com/amamparo/ableto
 | `create_midi_track` | Create a new MIDI track |
 | `create_audio_track` | Create a new audio track |
 | `delete_track` | Delete a track |
+| `delete_all_tracks` | Delete all tracks (clear session) |
 | `set_track_name` | Rename a track |
 | `set_track_volume` | Set track volume (0.0–1.0) |
 | `set_track_pan` | Set track pan (-1.0–1.0) |

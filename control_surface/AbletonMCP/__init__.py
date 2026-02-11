@@ -33,6 +33,7 @@ class AbletonMCP(ControlSurface):
         "create_midi_track": ("_create_midi_track", True),
         "create_audio_track": ("_create_audio_track", True),
         "delete_track": ("_delete_track", True),
+        "delete_all_tracks": ("_delete_all_tracks", True),
         "set_track_name": ("_set_track_name", True),
         "set_track_volume": ("_set_track_volume", True),
         "set_track_pan": ("_set_track_pan", True),
@@ -301,6 +302,18 @@ class AbletonMCP(ControlSurface):
         song.delete_track(track_index)
         return {"deleted": True}
 
+    def _delete_all_tracks(self):
+        song = self.song()
+        count = len(song.tracks)
+        # Delete from highest index down, keeping one track (Ableton requires
+        # at least one track to exist)
+        for i in range(count - 1, 0, -1):
+            song.delete_track(i)
+        # Clear devices and clips from the remaining track
+        remaining = song.tracks[0]
+        remaining.name = "1-MIDI"
+        return {"deleted": count - 1, "remaining_tracks": 1}
+
     def _set_track_name(self, track_index, name):
         track = self._get_track(track_index)
         track.name = name
@@ -429,12 +442,40 @@ class AbletonMCP(ControlSurface):
         browser = app.browser
         parts = path.strip("/").split("/")
 
-        # Start from top-level browser categories
-        current_items = list(browser.instruments.children)
-        current_items += list(browser.audio_effects.children)
-        current_items += list(browser.midi_effects.children)
-        current_items += list(browser.sounds.children)
-        current_items += list(browser.drums.children)
+        # Map top-level category names to browser sources
+        top_level = {
+            "Instruments": browser.instruments,
+            "Audio Effects": browser.audio_effects,
+            "MIDI Effects": browser.midi_effects,
+            "Sounds": browser.sounds,
+            "Drums": browser.drums,
+        }
+        if hasattr(browser, "max_for_live"):
+            top_level["Max for Live"] = browser.max_for_live
+
+        # If first component is a top-level category, scope to that category
+        first_part = parts[0]
+        if first_part in top_level:
+            current_items = list(top_level[first_part].children)
+            parts = parts[1:]
+            if not parts:
+                items = []
+                for item in current_items:
+                    items.append({
+                        "name": item.name,
+                        "uri": item.uri if hasattr(item, "uri") else "",
+                        "is_folder": (
+                            item.is_folder
+                            if hasattr(item, "is_folder")
+                            else False
+                        ),
+                    })
+                return {"items": items}
+        else:
+            # Search across all categories' children
+            current_items = []
+            for source in top_level.values():
+                current_items += list(source.children)
 
         for part in parts:
             found = None
@@ -477,9 +518,19 @@ class AbletonMCP(ControlSurface):
         track = self._get_track(track_index)
         self.song().view.selected_track = track
         browser.load_item(item)
-        return {"loaded": True, "track_index": track_index, "uri": uri}
 
-    def _find_browser_item_by_uri(self, browser, uri, max_depth=10):
+        device_name = ""
+        if len(track.devices) > 0:
+            device_name = track.devices[-1].name
+
+        return {
+            "loaded": True,
+            "track_index": track_index,
+            "uri": uri,
+            "device_name": device_name,
+        }
+
+    def _find_browser_item_by_uri(self, browser, uri, max_depth=25):
         sources = [
             browser.instruments,
             browser.audio_effects,
@@ -490,10 +541,23 @@ class AbletonMCP(ControlSurface):
         if hasattr(browser, "max_for_live"):
             sources.append(browser.max_for_live)
 
+        # Try exact URI match first
         for source in sources:
             result = self._search_uri(source, uri, max_depth)
             if result is not None:
                 return result
+
+        # Fallback: search by name (handles cases where URI format varies)
+        name = uri.rsplit("/", 1)[-1]
+        if ":" in name:
+            # Strip URI scheme prefix (e.g. "query:Sounds#Bass:FileId_6880")
+            name = None
+        if name:
+            for source in sources:
+                result = self._search_name(source, name, max_depth)
+                if result is not None:
+                    return result
+
         return None
 
     def _search_uri(self, item, uri, depth):
@@ -504,6 +568,19 @@ class AbletonMCP(ControlSurface):
         if hasattr(item, "children"):
             for child in item.children:
                 result = self._search_uri(child, uri, depth - 1)
+                if result is not None:
+                    return result
+        return None
+
+    def _search_name(self, item, name, depth):
+        if depth <= 0:
+            return None
+        if hasattr(item, "name") and item.name == name:
+            if not (item.is_folder if hasattr(item, "is_folder") else True):
+                return item
+        if hasattr(item, "children"):
+            for child in item.children:
+                result = self._search_name(child, name, depth - 1)
                 if result is not None:
                     return result
         return None
