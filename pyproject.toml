@@ -1,0 +1,37 @@
+[project]
+name = "ableton-mcp"
+version = "0.1.0"
+description = "MCP server for Ableton Live"
+authors = [
+    {name = "Aaron Mamparo", email = "aaronmamparo@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = []
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.0"
+pytest = "^8.0"
+ruff = "^0.8"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[[tool.poetry.packages]]
+include = "ableton_mcp"
+from = "src"
