@@ -475,6 +475,7 @@ class AbletonMCP(ControlSurface):
             raise ValueError("Browser item not found for URI: %s" % uri)
 
         track = self._get_track(track_index)
+        self.song().view.selected_track = track
         browser.load_item(item)
         return {"loaded": True, "track_index": track_index, "uri": uri}
 
