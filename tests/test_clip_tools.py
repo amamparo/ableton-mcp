@@ -46,7 +46,25 @@ async def test_add_notes_to_clip(fake_client, mcp_server):
     assert result["notes_added"] == 2
     assert fake_client.commands_sent[0] == (
         "add_notes_to_clip",
-        {"track_index": 0, "clip_index": 0, "notes": notes},
+        {"track_index": 0, "clip_index": 0, "notes": notes, "append": False},
+    )
+
+
+@pytest.mark.anyio
+async def test_add_notes_to_clip_append(fake_client, mcp_server):
+    notes = [{"pitch": 67, "start_time": 2.0, "duration": 1.0, "velocity": 90}]
+    fake_client.set_response("add_notes_to_clip", {"notes_added": 1})
+
+    content, _ = await mcp_server.call_tool(
+        "add_notes_to_clip",
+        {"track_index": 0, "clip_index": 0, "notes": notes, "append": True},
+    )
+    result = json.loads(content[0].text)
+
+    assert result["notes_added"] == 1
+    assert fake_client.commands_sent[0] == (
+        "add_notes_to_clip",
+        {"track_index": 0, "clip_index": 0, "notes": notes, "append": True},
     )
 
 

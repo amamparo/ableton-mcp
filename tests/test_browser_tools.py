@@ -51,7 +51,37 @@ async def test_load_instrument_or_effect(fake_client, mcp_server):
 
     assert result["loaded"] is True
     assert fake_client.commands_sent == [
-        ("load_browser_item", {"track_index": 0, "uri": "ableton:Analog"})
+        (
+            "load_browser_item",
+            {
+                "track_index": 0,
+                "uri": "ableton:Analog",
+                "clear_existing": False,
+            },
+        )
+    ]
+
+
+@pytest.mark.anyio
+async def test_load_instrument_or_effect_clear_existing(fake_client, mcp_server):
+    fake_client.set_response("load_browser_item", {"loaded": True})
+
+    content, _ = await mcp_server.call_tool(
+        "load_instrument_or_effect",
+        {"track_index": 1, "uri": "ableton:Wavetable", "clear_existing": True},
+    )
+    result = json.loads(content[0].text)
+
+    assert result["loaded"] is True
+    assert fake_client.commands_sent == [
+        (
+            "load_browser_item",
+            {
+                "track_index": 1,
+                "uri": "ableton:Wavetable",
+                "clear_existing": True,
+            },
+        )
     ]
 
 

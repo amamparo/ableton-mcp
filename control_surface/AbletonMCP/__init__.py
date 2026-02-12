@@ -376,7 +376,7 @@ class AbletonMCP(ControlSurface):
             "length": float(length),
         }
 
-    def _add_notes_to_clip(self, track_index, clip_index, notes):
+    def _add_notes_to_clip(self, track_index, clip_index, notes, append=False):
         clip = self._get_clip(track_index, clip_index)
         note_tuples = []
         for n in notes:
@@ -387,7 +387,11 @@ class AbletonMCP(ControlSurface):
                 int(n.get("velocity", 100)),
                 bool(n.get("mute", False)),
             ))
-        clip.select_all_notes()
+        if append:
+            # Deselect so replace_selected_notes adds without removing
+            clip.deselect_all_notes()
+        else:
+            clip.select_all_notes()
         clip.replace_selected_notes(tuple(note_tuples))
         return {"notes_added": len(note_tuples)}
 
@@ -717,7 +721,7 @@ class AbletonMCP(ControlSurface):
             time.sleep(0.1)
         return None
 
-    def _load_browser_item(self, track_index, uri):
+    def _load_browser_item(self, track_index, uri, clear_existing=False):
         app = self.application()
         browser = app.browser
 
@@ -726,8 +730,20 @@ class AbletonMCP(ControlSurface):
             raise ValueError("Browser item not found for URI: %s" % uri)
 
         track = self._get_track(track_index)
+
+        # Remove existing devices to avoid unreliable replacement behaviour
+        if clear_existing:
+            while len(track.devices) > 0:
+                track.delete_device(track.devices[0])
+
         device_count_before = len(track.devices)
+
+        # Select the track, then wait for the selection to propagate before
+        # triggering the browser load.  Without this delay the browser may
+        # load onto the previously-selected track instead.
         self.song().view.selected_track = track
+        time.sleep(0.2)
+
         browser.load_item(item)
 
         device_name = self._wait_for_device(track, device_count_before)
@@ -757,6 +773,7 @@ class AbletonMCP(ControlSurface):
 
         device_count_before = len(track.devices)
         song.view.selected_track = track
+        time.sleep(0.2)
         browser.load_item(item)
 
         device_name = self._wait_for_device(track, device_count_before)

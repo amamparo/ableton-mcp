@@ -107,17 +107,24 @@ def create_server(injector: Injector | None = None) -> FastMCP:
         )
 
     @mcp.tool()
-    def add_notes_to_clip(track_index: int, clip_index: int, notes: list[dict]) -> str:
+    def add_notes_to_clip(
+        track_index: int,
+        clip_index: int,
+        notes: list[dict],
+        append: bool = False,
+    ) -> str:
         """Add MIDI notes to a clip. Each note is a dict with keys:
         pitch (0-127), start_time (beats), duration (beats),
         velocity (0-127, default 100), mute (bool, default false).
-        Note: this replaces all existing notes in the clip."""
+        By default this replaces all existing notes in the clip.
+        Set append=true to keep existing notes and add the new ones on top."""
         return _call(
             "add_notes_to_clip",
             {
                 "track_index": track_index,
                 "clip_index": clip_index,
                 "notes": notes,
+                "append": append,
             },
         )
 
@@ -262,14 +269,23 @@ def create_server(injector: Injector | None = None) -> FastMCP:
         return _call("get_browser_items_at_path", {"path": path})
 
     @mcp.tool()
-    def load_instrument_or_effect(track_index: int, uri: str) -> str:
+    def load_instrument_or_effect(
+        track_index: int, uri: str, clear_existing: bool = False
+    ) -> str:
         """Load an instrument or effect onto a track by its browser URI.
         Use get_browser_tree and get_browser_items_at_path to find URIs.
         Returns the loaded device_name so you can verify the correct device was loaded.
-        """
+        Set clear_existing=true to remove all existing devices from the track before
+        loading — recommended when replacing an instrument on a non-empty track.
+        IMPORTANT: load instruments sequentially, not in parallel. Concurrent loads
+        will fail or land on the wrong track."""
         return _call(
             "load_browser_item",
-            {"track_index": track_index, "uri": uri},
+            {
+                "track_index": track_index,
+                "uri": uri,
+                "clear_existing": clear_existing,
+            },
         )
 
     @mcp.tool()
@@ -278,7 +294,8 @@ def create_server(injector: Injector | None = None) -> FastMCP:
     ) -> str:
         """Create a new MIDI track and load an instrument in a single operation.
         Faster than separate create_midi_track + load_instrument_or_effect calls.
-        Use index=-1 to append at the end. Optionally set the track name."""
+        Use index=-1 to append at the end. Optionally set the track name.
+        IMPORTANT: load instruments sequentially, not in parallel."""
         params: dict = {"uri": uri, "index": index}
         if name:
             params["name"] = name
