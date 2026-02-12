@@ -85,14 +85,26 @@ claude mcp add ableton-mcp -- uvx --from "git+https://github.com/amamparo/ableto
 | `set_clip_name` | Rename a clip |
 | `fire_clip` | Start playing a clip |
 | `stop_clip` | Stop a clip |
+| `get_clip_notes` | Read MIDI notes from a session clip |
+| `get_clip_info` | Get clip details (name, length, loop points) |
+| `duplicate_clip_to_scene` | Duplicate a session clip to another scene |
+| `delete_clip` | Delete a clip from a session clip slot |
+| `create_scene` | Create a new scene |
+| `delete_scene` | Delete a scene |
+| `set_scene_name` | Rename a scene |
+| `fire_scene` | Fire all clips in a scene |
 | `start_playback` | Start session playback |
 | `stop_playback` | Stop session playback |
 | `set_tempo` | Set tempo in BPM |
+| `set_time_signature` | Set time signature (e.g. 5/4, 7/8) |
+| `undo` | Trigger Ableton's undo |
 | `get_browser_tree` | Browse instruments/effects categories |
 | `get_browser_items_at_path` | List items at a browser path |
 | `load_instrument_or_effect` | Load a device onto a track |
 | `create_midi_track_with_instrument` | Create a MIDI track and load an instrument in one step |
 | `load_drum_kit` | Load a drum rack and kit |
+| `get_device_parameters` | List all parameters of a device |
+| `set_device_parameter` | Set a device parameter value |
 | `get_arrangement_clips` | List clips on the arrangement timeline |
 | `create_arrangement_clip` | Create a MIDI clip on the arrangement timeline |
 | `delete_arrangement_clip` | Delete an arrangement clip |

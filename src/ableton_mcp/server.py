@@ -149,6 +149,71 @@ def create_server(injector: Injector | None = None) -> FastMCP:
             {"track_index": track_index, "clip_index": clip_index},
         )
 
+    @mcp.tool()
+    def get_clip_notes(track_index: int, clip_index: int) -> str:
+        """Read all MIDI notes from a session clip.
+        Returns a list of notes with pitch, start_time, duration, velocity,
+        and mute."""
+        return _call(
+            "get_clip_notes",
+            {"track_index": track_index, "clip_index": clip_index},
+        )
+
+    @mcp.tool()
+    def get_clip_info(track_index: int, clip_index: int) -> str:
+        """Get detailed info about a session clip: name, length,
+        loop_start, loop_end, is_playing, is_recording."""
+        return _call(
+            "get_clip_info",
+            {"track_index": track_index, "clip_index": clip_index},
+        )
+
+    @mcp.tool()
+    def duplicate_clip_to_scene(
+        track_index: int, source_clip_index: int, dest_clip_index: int
+    ) -> str:
+        """Duplicate a session clip from one scene to another on the same track.
+        The destination clip slot must be empty."""
+        return _call(
+            "duplicate_clip_to_scene",
+            {
+                "track_index": track_index,
+                "source_clip_index": source_clip_index,
+                "dest_clip_index": dest_clip_index,
+            },
+        )
+
+    @mcp.tool()
+    def delete_clip(track_index: int, clip_index: int) -> str:
+        """Delete a clip from a session clip slot."""
+        return _call(
+            "delete_clip",
+            {"track_index": track_index, "clip_index": clip_index},
+        )
+
+    # ── Scene Management ─────────────────────────────────────────────
+
+    @mcp.tool()
+    def create_scene(index: int = -1) -> str:
+        """Create a new empty scene. Use index=-1 to append at the end.
+        Adds a new clip slot row across all tracks."""
+        return _call("create_scene", {"index": index})
+
+    @mcp.tool()
+    def delete_scene(scene_index: int) -> str:
+        """Delete a scene by index. Cannot delete the last scene."""
+        return _call("delete_scene", {"scene_index": scene_index})
+
+    @mcp.tool()
+    def set_scene_name(scene_index: int, name: str) -> str:
+        """Rename a scene (the label in the Master track column)."""
+        return _call("set_scene_name", {"scene_index": scene_index, "name": name})
+
+    @mcp.tool()
+    def fire_scene(scene_index: int) -> str:
+        """Fire all clips in a scene simultaneously."""
+        return _call("fire_scene", {"scene_index": scene_index})
+
     # ── Transport ───────────────────────────────────────────────────
 
     @mcp.tool()
@@ -165,6 +230,19 @@ def create_server(injector: Injector | None = None) -> FastMCP:
     def set_tempo(tempo: float) -> str:
         """Set the session tempo in BPM."""
         return _call("set_tempo", {"tempo": tempo})
+
+    @mcp.tool()
+    def set_time_signature(numerator: int, denominator: int) -> str:
+        """Set the song's time signature (e.g. 4/4, 5/4, 7/8)."""
+        return _call(
+            "set_time_signature",
+            {"numerator": numerator, "denominator": denominator},
+        )
+
+    @mcp.tool()
+    def undo() -> str:
+        """Trigger Ableton's undo. Safety net for destructive operations."""
+        return _call("undo")
 
     # ── Browser / Devices ───────────────────────────────────────────
 
@@ -218,6 +296,33 @@ def create_server(injector: Injector | None = None) -> FastMCP:
         return _call(
             "load_browser_item",
             {"track_index": track_index, "uri": kit_path},
+        )
+
+    # ── Device Parameters ────────────────────────────────────────────
+
+    @mcp.tool()
+    def get_device_parameters(track_index: int, device_index: int) -> str:
+        """List all parameters of a device on a track.
+        Returns device_name and a list of parameters with name, value, min, max."""
+        return _call(
+            "get_device_parameters",
+            {"track_index": track_index, "device_index": device_index},
+        )
+
+    @mcp.tool()
+    def set_device_parameter(
+        track_index: int, device_index: int, param_index: int, value: float
+    ) -> str:
+        """Set a device parameter value. Value is clamped to the parameter's
+        min/max range. Use get_device_parameters to discover available parameters."""
+        return _call(
+            "set_device_parameter",
+            {
+                "track_index": track_index,
+                "device_index": device_index,
+                "param_index": param_index,
+                "value": value,
+            },
         )
 
     # ── Arrangement View ─────────────────────────────────────────────

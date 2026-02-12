@@ -69,6 +69,21 @@ class AbletonMCP(ControlSurface):
             True,
         ),
         "session_to_arrangement": ("_session_to_arrangement", True),
+        # Scene management
+        "create_scene": ("_create_scene", True),
+        "delete_scene": ("_delete_scene", True),
+        "set_scene_name": ("_set_scene_name", True),
+        "fire_scene": ("_fire_scene", True),
+        # Session clip read-back
+        "get_clip_notes": ("_get_clip_notes", False),
+        "get_clip_info": ("_get_clip_info", False),
+        "duplicate_clip_to_scene": ("_duplicate_clip_to_scene", True),
+        "delete_clip": ("_delete_clip", True),
+        # Quality-of-life
+        "set_time_signature": ("_set_time_signature", True),
+        "get_device_parameters": ("_get_device_parameters", False),
+        "set_device_parameter": ("_set_device_parameter", True),
+        "undo": ("_undo", True),
     }
 
     def __init__(self, c_instance):
@@ -391,6 +406,132 @@ class AbletonMCP(ControlSurface):
         slot.stop()
         return {"stopped": True}
 
+    def _get_clip_notes(self, track_index, clip_index):
+        clip = self._get_clip(track_index, clip_index)
+        notes = []
+        if hasattr(clip, "get_notes_extended"):
+            raw = clip.get_notes_extended(0, 128, 0.0, clip.length)
+            for note in raw:
+                notes.append({
+                    "pitch": note.pitch,
+                    "start_time": note.start_time,
+                    "duration": note.duration,
+                    "velocity": note.velocity,
+                    "mute": note.mute,
+                })
+        else:
+            raw = clip.get_notes(0.0, 0, clip.length, 128)
+            for note in raw:
+                notes.append({
+                    "pitch": note[0],
+                    "start_time": note[1],
+                    "duration": note[2],
+                    "velocity": note[3],
+                    "mute": note[4],
+                })
+        return {"notes": notes}
+
+    def _get_clip_info(self, track_index, clip_index):
+        clip = self._get_clip(track_index, clip_index)
+        info = {
+            "name": clip.name,
+            "length": clip.length,
+            "is_playing": clip.is_playing,
+        }
+        if hasattr(clip, "loop_start"):
+            info["loop_start"] = clip.loop_start
+        if hasattr(clip, "loop_end"):
+            info["loop_end"] = clip.loop_end
+        if hasattr(clip, "is_recording"):
+            info["is_recording"] = clip.is_recording
+        return info
+
+    def _duplicate_clip_to_scene(
+        self, track_index, source_clip_index, dest_clip_index
+    ):
+        track = self._get_track(track_index)
+        source_slot = self._get_clip_slot(track_index, source_clip_index)
+        if not source_slot.has_clip:
+            raise ValueError(
+                "No clip at track %d, slot %d" % (track_index, source_clip_index)
+            )
+        dest_slot = self._get_clip_slot(track_index, dest_clip_index)
+        if dest_slot.has_clip:
+            raise ValueError(
+                "Destination slot %d already has a clip" % dest_clip_index
+            )
+        source_clip = source_slot.clip
+        dest_slot.create_clip(source_clip.length)
+        dest_clip = dest_slot.clip
+        dest_clip.name = source_clip.name
+        # Copy notes
+        if hasattr(source_clip, "get_notes_extended"):
+            raw = source_clip.get_notes_extended(0, 128, 0.0, source_clip.length)
+            note_tuples = []
+            for note in raw:
+                note_tuples.append(
+                    (note.pitch, note.start_time, note.duration,
+                     note.velocity, note.mute)
+                )
+        else:
+            raw = source_clip.get_notes(0.0, 0, source_clip.length, 128)
+            note_tuples = list(raw)
+        if note_tuples:
+            dest_clip.select_all_notes()
+            dest_clip.replace_selected_notes(tuple(note_tuples))
+        return {
+            "duplicated": True,
+            "track_index": track_index,
+            "source_clip_index": source_clip_index,
+            "dest_clip_index": dest_clip_index,
+        }
+
+    def _delete_clip(self, track_index, clip_index):
+        slot = self._get_clip_slot(track_index, clip_index)
+        if not slot.has_clip:
+            raise ValueError(
+                "No clip at track %d, slot %d" % (track_index, clip_index)
+            )
+        slot.delete_clip()
+        return {"deleted": True}
+
+    # ── Scene Management Handlers ────────────────────────────────────
+
+    def _get_scene(self, scene_index):
+        scenes = self.song().scenes
+        if scene_index < 0 or scene_index >= len(scenes):
+            raise ValueError(
+                "Scene index %d out of range (0-%d)"
+                % (scene_index, len(scenes) - 1)
+            )
+        return scenes[scene_index]
+
+    def _create_scene(self, index=-1):
+        song = self.song()
+        if index == -1:
+            index = len(song.scenes)
+        song.create_scene(index)
+        scene = song.scenes[index]
+        return {"index": index, "name": scene.name}
+
+    def _delete_scene(self, scene_index):
+        song = self.song()
+        if len(song.scenes) <= 1:
+            raise ValueError("Cannot delete the last scene")
+        self._get_scene(scene_index)
+        song.delete_scene(scene_index)
+        return {"deleted": True}
+
+    def _set_scene_name(self, scene_index, name):
+        scene = self._get_scene(scene_index)
+        scene.name = name
+        return {"name": scene.name}
+
+    def _fire_scene(self, scene_index):
+        scene = self._get_scene(scene_index)
+        scene.fire()
+        return {"fired": True}
+
     # ── Transport Handlers ──────────────────────────────────────────
 
     def _start_playback(self):
@@ -405,6 +546,57 @@ class AbletonMCP(ControlSurface):
         tempo = max(20.0, min(999.0, float(tempo)))
         self.song().tempo = tempo
         return {"tempo": self.song().tempo}
+
+    def _set_time_signature(self, numerator, denominator):
+        song = self.song()
+        song.signature_numerator = int(numerator)
+        song.signature_denominator = int(denominator)
+        return {
+            "signature_numerator": song.signature_numerator,
+            "signature_denominator": song.signature_denominator,
+        }
+
+    def _undo(self):
+        self.song().undo()
+        return {"undone": True}
+
+    # ── Device Parameter Handlers ────────────────────────────────────
+
+    def _get_device(self, track_index, device_index):
+        track = self._get_track(track_index)
+        if device_index < 0 or device_index >= len(track.devices):
+            raise ValueError(
+                "Device index %d out of range (0-%d)"
+                % (device_index, len(track.devices) - 1)
+            )
+        return track.devices[device_index]
+
+    def _get_device_parameters(self, track_index, device_index):
+        device = self._get_device(track_index, device_index)
+        params = []
+        for i, param in enumerate(device.parameters):
+            params.append({
+                "index": i,
+                "name": param.name,
+                "value": param.value,
+                "min": param.min,
+                "max": param.max,
+            })
+        return {"device_name": device.name, "parameters": params}
+
+    def _set_device_parameter(
+        self, track_index, device_index, param_index, value
+    ):
+        device = self._get_device(track_index, device_index)
+        if param_index < 0 or param_index >= len(device.parameters):
+            raise ValueError(
+                "Parameter index %d out of range (0-%d)"
+                % (param_index, len(device.parameters) - 1)
+            )
+        param = device.parameters[param_index]
+        clamped = max(param.min, min(param.max, float(value)))
+        param.value = clamped
+        return {"name": param.name, "value": param.value}
 
     # ── Browser / Device Handlers ───────────────────────────────────
 
